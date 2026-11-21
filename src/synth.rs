@@ -6,6 +6,14 @@
 //! renders to the same samples.
 
 use std::f32::consts::PI;
+use std::sync::Arc;
+
+/// A cutoff multiplier over the song (absolute seconds).
+pub type Auto = Arc<dyn Fn(f32) -> f32 + Send + Sync>;
+
+pub fn unity() -> Auto {
+    Arc::new(|_| 1.0)
+}
 
 pub const SR: u32 = 48_000;
 const SRF: f32 = SR as f32;
@@ -52,11 +60,7 @@ pub struct Inst {
     pub pan: f32,
     pub send: f32,
     /// Cutoff multiplier over the song (absolute seconds), for long sweeps.
-    pub auto: fn(f32) -> f32,
-}
-
-fn unity(_: f32) -> f32 {
-    1.0
+    pub auto: Auto,
 }
 
 impl Default for Inst {
@@ -83,7 +87,7 @@ impl Default for Inst {
             vol: 0.2,
             pan: 0.0,
             send: 0.2,
-            auto: unity,
+            auto: unity(),
         }
     }
 }
@@ -104,7 +108,16 @@ pub struct Note {
 
 impl Note {
     pub fn new(t: f32, dur: f32, midi: f32, inst: usize, vel: f32) -> Self {
-        Note { t, dur, midi, inst, vel, arp: Vec::new(), slide_from: None, slide_time: 0.0 }
+        Note {
+            t,
+            dur,
+            midi,
+            inst,
+            vel,
+            arp: Vec::new(),
+            slide_from: None,
+            slide_time: 0.0,
+        }
     }
 }
 
@@ -179,7 +192,8 @@ fn render_note(inst: &Inst, note: &Note, dry: &mut [[f32; 2]], wet: &mut [f32]) 
         }
         let s = match inst.wave {
             Wave::Pulse => {
-                let pw = (inst.pw + inst.pwm_depth * (2.0 * PI * inst.pwm_rate * tabs).sin()).clamp(0.05, 0.95);
+                let pw = (inst.pw + inst.pwm_depth * (2.0 * PI * inst.pwm_rate * tabs).sin())
+                    .clamp(0.05, 0.95);
                 let mut v = if phase < pw { 1.0 } else { -1.0 };
                 v += polyblep(phase, dt);
                 v -= polyblep((phase - pw).rem_euclid(1.0), dt);
@@ -200,7 +214,8 @@ fn render_note(inst: &Inst, note: &Note, dry: &mut [[f32; 2]], wet: &mut [f32]) 
         let s = if inst.filter == Filter::Off {
             s
         } else {
-            let fc = (inst.cutoff * (inst.auto)(tabs) + inst.cutoff_env * e).clamp(20.0, 0.45 * SRF);
+            let fc =
+                (inst.cutoff * (inst.auto)(tabs) + inst.cutoff_env * e).clamp(20.0, 0.45 * SRF);
             let g = (PI * fc / SRF).tan();
             let a1 = 1.0 / (1.0 + g * (g + k));
             let a2 = g * a1;
@@ -231,7 +246,11 @@ struct Comb {
 
 impl Comb {
     fn new(len: usize) -> Self {
-        Comb { buf: vec![0.0; len], pos: 0, store: 0.0 }
+        Comb {
+            buf: vec![0.0; len],
+            pos: 0,
+            store: 0.0,
+        }
     }
     fn tick(&mut self, x: f32, fb: f32, damp: f32) -> f32 {
         let y = self.buf[self.pos];
@@ -249,7 +268,10 @@ struct Allpass {
 
 impl Allpass {
     fn new(len: usize) -> Self {
-        Allpass { buf: vec![0.0; len], pos: 0 }
+        Allpass {
+            buf: vec![0.0; len],
+            pos: 0,
+        }
     }
     fn tick(&mut self, x: f32) -> f32 {
         let b = self.buf[self.pos];
@@ -270,12 +292,22 @@ fn effects(wet: &[f32], delay_s: f32) -> Vec<[f32; 2]> {
     let scale = SRF / 44_100.0;
     let lens = [1116, 1188, 1277, 1356, 1422, 1491];
     let mut combs: [Vec<Comb>; 2] = [
-        lens.iter().map(|&l| Comb::new((l as f32 * scale) as usize)).collect(),
-        lens.iter().map(|&l| Comb::new(((l + 23) as f32 * scale) as usize)).collect(),
+        lens.iter()
+            .map(|&l| Comb::new((l as f32 * scale) as usize))
+            .collect(),
+        lens.iter()
+            .map(|&l| Comb::new(((l + 23) as f32 * scale) as usize))
+            .collect(),
     ];
     let mut aps: [Vec<Allpass>; 2] = [
-        [556, 441, 341].iter().map(|&l| Allpass::new((l as f32 * scale) as usize)).collect(),
-        [579, 464, 364].iter().map(|&l| Allpass::new((l as f32 * scale) as usize)).collect(),
+        [556, 441, 341]
+            .iter()
+            .map(|&l| Allpass::new((l as f32 * scale) as usize))
+            .collect(),
+        [579, 464, 364]
+            .iter()
+            .map(|&l| Allpass::new((l as f32 * scale) as usize))
+            .collect(),
     ];
     // Lows never go to the effects: a sustained bass note would make the
     // combs ring and drown everything else.

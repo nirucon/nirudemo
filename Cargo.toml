@@ -1,0 +1,11 @@
+[package]
+name = "nirudemo"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "NIRUX demoscene easter egg: realtime demos in the theme colours"
+
+[dependencies]
+
+[profile.release]
+opt-level = 3

@@ -1,5 +1,6 @@
 //! The NIRUX music: eleven original chiptunes in minor keys, between dark
-//! ambient, the C64 sound of the 1980s and calm, Satie-like pieces. Each is
+//! ambient, the C64 sound of the 1980s and calm, Satie-like pieces, and an
+//! arrangement of Erik Satie's Gymnopedie No. 1 in the SID sound. Each is
 //! installed as `nirux-N-key.ogg` and plays in the lock and the screensaver;
 //! a demo may use one as its soundtrack.
 //!
@@ -21,6 +22,7 @@ mod s08_nidhogg;
 mod s09_vanaheim;
 mod s10_ragnarok;
 mod s11_gimle;
+pub mod s12_gymnopedie;
 
 pub struct Song {
     pub number: u32,
@@ -34,15 +36,63 @@ pub struct Song {
     pub length: f32,
     /// Echo delay of the effects, seconds.
     pub delay: f32,
+    /// Who wrote it, for an arrangement; `None` for NIRUX's own songs.
+    pub credit: Option<Credit>,
+    /// A looped song is exactly `length` seconds long and continues into
+    /// its own start without a seam: the reverb and echo of its end sound
+    /// over its beginning.
+    pub looped: bool,
 }
+
+/// The tags of an arrangement of someone else's piece.
+pub struct Credit {
+    /// The title tag (plain ASCII, so every player shows it the same).
+    pub title: &'static str,
+    pub artist: &'static str,
+    pub comment: &'static str,
+}
+
+/// How much of the end is rendered before a looped song starts, so the
+/// reverb and echo have settled; longer than any note.
+const LOOP_LEAD_IN: f32 = 30.0;
 
 impl Song {
     pub fn file_name(&self) -> String {
         format!("nirux-{}-{}.ogg", self.number, self.key)
     }
 
+    /// The title, artist and comment tags of the file.
+    pub fn tags(&self) -> (&'static str, &'static str, &'static str) {
+        match &self.credit {
+            Some(c) => (c.title, c.artist, c.comment),
+            None => (self.title, "NIRUX", ""),
+        }
+    }
+
     pub fn render(&self) -> Vec<[f32; 2]> {
-        synth::render(&self.insts, &self.notes, self.length, self.delay)
+        if !self.looped {
+            return synth::render(&self.insts, &self.notes, self.length, self.delay);
+        }
+        // Play the song twice and keep the second time from a lead-in
+        // before it: its start then holds the tail of the first time, just
+        // as it does when a player loops the file.
+        let mut notes = self.notes.clone();
+        notes.extend(self.notes.iter().map(|n| {
+            let mut n = n.clone();
+            n.t += self.length;
+            n
+        }));
+        let origin = self.length - LOOP_LEAD_IN;
+        let mut out = synth::render_window(
+            &self.insts,
+            &notes,
+            origin,
+            LOOP_LEAD_IN + self.length,
+            self.delay,
+        );
+        let keep = (self.length * synth::SR as f32) as usize;
+        out.drain(..out.len() - keep);
+        out
     }
 }
 
@@ -59,6 +109,7 @@ pub fn all() -> Vec<Song> {
         s09_vanaheim::song(),
         s10_ragnarok::song(),
         s11_gimle::song(),
+        s12_gymnopedie::song(),
     ]
 }
 
@@ -668,7 +719,7 @@ mod tests {
     #[test]
     fn every_song_is_unique_and_sane() {
         let songs = all();
-        assert_eq!(songs.len(), 11);
+        assert_eq!(songs.len(), 12);
         for (i, s) in songs.iter().enumerate() {
             assert_eq!(s.number as usize, i + 1);
             assert!(s.key.bytes().all(|b| b.is_ascii_lowercase()), "{}", s.key);
@@ -688,5 +739,7 @@ mod tests {
         }
         assert_eq!(find("1").unwrap().key, "ginnungagap");
         assert_eq!(find("Gimle").unwrap().number, 11);
+        assert_eq!(find("12").unwrap().key, "gymnopedie");
+        assert_eq!(find("1").unwrap().tags(), ("Ginnungagap", "NIRUX", ""));
     }
 }

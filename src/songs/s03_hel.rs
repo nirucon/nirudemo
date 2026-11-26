@@ -105,5 +105,7 @@ pub fn song() -> Song {
         notes: s.notes,
         length: 39.0 * bar + 6.0,
         delay: s.row * 6.0,
+        credit: None,
+        looped: false,
     }
 }

@@ -472,5 +472,7 @@ pub fn song() -> Song {
         notes: notes(),
         length: LENGTH,
         delay: DELAY,
+        credit: None,
+        looped: false,
     }
 }

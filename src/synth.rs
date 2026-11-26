@@ -144,8 +144,11 @@ fn env_gate(inst: &Inst, tt: f32) -> f32 {
     }
 }
 
-fn render_note(inst: &Inst, note: &Note, dry: &mut [[f32; 2]], wet: &mut [f32]) {
-    let start = (note.t * SRF) as usize;
+/// Render one note into buffers that begin at `origin` seconds. A note that
+/// starts before the origin is computed from its start and written only
+/// where it overlaps the buffers.
+fn render_note(inst: &Inst, note: &Note, origin: f32, dry: &mut [[f32; 2]], wet: &mut [f32]) {
+    let start = ((note.t - origin) * SRF).floor() as i64;
     let total = ((note.dur + inst.release) * SRF) as usize;
     let level_at_release = env_gate(inst, note.dur);
     let angle = (inst.pan.clamp(-1.0, 1.0) + 1.0) * PI / 4.0;
@@ -156,7 +159,9 @@ fn render_note(inst: &Inst, note: &Note, dry: &mut [[f32; 2]], wet: &mut [f32]) 
     let (mut ic1, mut ic2) = (0.0f32, 0.0f32);
     let k = 2.0 - 2.0 * inst.res.clamp(0.0, 0.97);
     for i in 0..total {
-        let idx = start + i;
+        let Ok(idx) = usize::try_from(start + i as i64) else {
+            continue;
+        };
         if idx >= dry.len() {
             break;
         }
@@ -339,11 +344,28 @@ fn effects(wet: &[f32], delay_s: f32) -> Vec<[f32; 2]> {
 
 /// Render the notes to stereo samples of `length` seconds.
 pub fn render(insts: &[Inst], notes: &[Note], length: f32, delay_s: f32) -> Vec<[f32; 2]> {
+    render_window(insts, notes, 0.0, length, delay_s)
+}
+
+/// Render `length` seconds from `origin` seconds on. Notes keep their
+/// absolute times (sweeps and pulse-width movement too); a note that ends
+/// before the origin is skipped.
+pub fn render_window(
+    insts: &[Inst],
+    notes: &[Note],
+    origin: f32,
+    length: f32,
+    delay_s: f32,
+) -> Vec<[f32; 2]> {
     let n = (length * SRF) as usize;
     let mut dry = vec![[0.0f32; 2]; n];
     let mut wet = vec![0.0f32; n];
     for note in notes {
-        render_note(&insts[note.inst], note, &mut dry, &mut wet);
+        let inst = &insts[note.inst];
+        if note.t + note.dur + inst.release < origin {
+            continue;
+        }
+        render_note(inst, note, origin, &mut dry, &mut wet);
     }
     let fx = effects(&wet, delay_s);
     for (d, f) in dry.iter_mut().zip(fx.iter()) {

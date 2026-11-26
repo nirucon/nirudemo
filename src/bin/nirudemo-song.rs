@@ -1,15 +1,24 @@
 //! Render the NIRUX music to WAV files: `nirudemo-song OUTDIR [SONG...]`
 //! writes `nirux-N-key.wav` for every song (or the ones named by number or
-//! key). `--list` prints number, key, title and seconds.
+//! key). `--list` prints, tab separated, the number, key, title tag,
+//! seconds, artist tag, 1 for a looped song (else 0) and the comment tag
+//! (empty for NIRUX's own songs), for `tools/render-music.sh`.
 use nirudemo::{songs, synth};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.first().map(String::as_str) == Some("--list") {
         for s in songs::all() {
+            let (title, artist, comment) = s.tags();
             println!(
-                "{}\t{}\t{}\t{:.0}\t{}",
-                s.number, s.key, s.title, s.length, s.about
+                "{}\t{}\t{}\t{:.0}\t{}\t{}\t{}",
+                s.number,
+                s.key,
+                title,
+                s.length,
+                artist,
+                u8::from(s.looped),
+                comment
             );
         }
         return;

@@ -14,12 +14,13 @@ all its colours come from the active NIRUX theme.
 
 It also makes the NIRUX music: eleven original chiptunes in minor keys,
 between dark ambient, the C64 sound (fast arpeggios, pulse bass, vibrato and
-echo) and calm pieces in the spirit of Erik Satie. They are written as notes
-in Rust and rendered by a small SID-like synthesizer, so every release builds
-the same music from source. NIRUX installs them in
-`~/.local/share/nirux/music/` as `nirux-1-ginnungagap.ogg` to
-`nirux-11-gimle.ogg`, and they are the default pause music of NIRULOCK and
-the NIRUSCREENSAVER music scenes.
+echo) and calm pieces in the spirit of Erik Satie, and Satie himself:
+Gymnopédie No. 1 by Erik Satie (1888, public domain), arranged for NIRUX.
+They are written as notes in Rust and rendered by a small SID-like
+synthesizer, so every release builds the same music from source. NIRUX
+installs them in `~/.local/share/nirux/music/` as `nirux-1-ginnungagap.ogg`
+to `nirux-12-gymnopedie.ogg`, and they are the default pause music of
+NIRULOCK and the NIRUSCREENSAVER music scenes.
 
 ## Use
 
@@ -60,12 +61,28 @@ the keyboard the lock needs.
 | 9 | Vanaheim | F minor, 3/4: a pastoral, Satie-like waltz |
 | 10 | Ragnarok | C sharp minor, 96 BPM: a heartbeat, a climax and a collapse into wind |
 | 11 | Gimle | A minor, 64 BPM: a calm, hopeful close that ends on a major chord |
+| 12 | Gymnopédie | D major, 3/4 at 70 BPM: Erik Satie's Gymnopédie No. 1 for three SID voices, looped |
+
+Gymnopédie No. 1 by Erik Satie (1888, public domain), arranged for NIRUX.
+The arrangement is written from the score: a soft triangle bass on the first
+beat, the G major 7 and D major 7 chords on the second and third (pulse with
+slow pulse-width movement the first time, a gentle arpeggio the second time)
+under a resonant low-pass sweep, and the melody with a delayed vibrato and a
+quiet echo. It plays the piece twice, with both of Satie's endings, and is
+made to loop: the file ends exactly where it begins, with the echo of its
+end sounding over its start, so a player that loops it has no gap or click.
+Its tags are title `Gymnopedie No. 1`, artist `Erik Satie`, album
+`NIRUX music`, track 12, and a comment that it is a NIRUX chiptune
+arrangement; the other songs carry artist `NIRUX`. It has no demo of its own
+(it was made for the Erik Satie lock layout of NIRULOCK).
 
 ## Adding a demo or a song
 
 - A song is a module in `src/songs/` written with the `Score` notation (notes
   such as `d5:4 ~f5!:8`, chords, arpeggios, bass and drum patterns) and one
-  line in `songs::all()`.
+  line in `songs::all()`. An arrangement of someone else's piece sets
+  `credit` (its title, artist and comment tags), and `looped: true` renders a
+  song as a seamless loop of exactly `length` seconds.
 - A demo is a module in `src/demos/` that implements `Demo::draw(frame, t)`
   and one line in `demos::all()`, naming its song. The command line, the
   launcher's Demos view and the screensaver scene pick it up by themselves.

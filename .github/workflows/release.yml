@@ -24,7 +24,7 @@ jobs:
         run: |
           cargo build --release --locked --bin nirudemo-song
           sh tools/render-music.sh dist/music
-          test "$(ls dist/music/*.ogg | wc -l)" -eq 11
+          test "$(ls dist/music/*.ogg | wc -l)" -eq 12
       - run: |
           cp target/x86_64-unknown-linux-musl/release/nirudemo dist/
           cd dist && tar --owner=0 --group=0 --sort=name -cf nirudemo-music.tar music
